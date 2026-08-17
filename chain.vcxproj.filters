@@ -21,12 +21,24 @@
     <ClInclude Include="include\sha256.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\document.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\index.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\sha256.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\document.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\index.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

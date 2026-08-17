@@ -1,4 +1,6 @@
-﻿  main.c
+﻿  document.c
+  index.c
+  main.c
   sha256.c
   Generating Code...
   chain.vcxproj -> C:\Users\Poe\Documents\GitHub\chain\x64\Debug\chain.exe
