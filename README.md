@@ -1,2 +1,2 @@
 #STN-LABZ
-* Traust Chain Utility
+* Trust Chain Utility
