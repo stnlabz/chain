@@ -143,12 +143,14 @@
     <ClInclude Include="include\chain.h" />
     <ClInclude Include="include\document.h" />
     <ClInclude Include="include\index.h" />
+    <ClInclude Include="include\reference.h" />
     <ClInclude Include="include\sha256.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\document.c" />
     <ClCompile Include="src\index.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\reference.c" />
     <ClCompile Include="src\sha256.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

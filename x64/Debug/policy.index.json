@@ -14,5 +14,45 @@
     "status": "Pending",
     "previous_revision": "20260816.1.R0",
     "sha256": "ad120e46b2e10e950d27b29ae83fb4aa953fc1da13e062c9ec05a38fe79357e0"
+  },
+  {
+    "root_document_id": "20260729.6",
+    "revision_id": "20260729.6.R0",
+    "title": "20260729.6 — Engineering Documentation",
+    "status": "Approved",
+    "previous_revision": "NONE",
+    "sha256": "4fd74177160d097bf0aba99a0d91c9d3b403a19c97917b4379b2884f96781a86"
+  },
+  {
+    "root_document_id": "20260729.8",
+    "revision_id": "20260729.8.R0",
+    "title": "20260729.8 — Operational Doctrine",
+    "status": "Approved",
+    "previous_revision": "NONE",
+    "sha256": "a4f34e018c2c9bd78668e0bcaede7e7f137d39a309f0e992cbaa3081aca9605a"
+  },
+  {
+    "root_document_id": "20260729.6",
+    "revision_id": "20260729.6.R1",
+    "title": "20260729.6 — Engineering Documentation",
+    "status": "Pending",
+    "previous_revision": "20260729.6.R0",
+    "sha256": "0b0d57228105be5e10f05dacdd9f0f0f9a70533c80448dff16998c9a7a820d8a"
+  },
+  {
+    "root_document_id": "20260729.6",
+    "revision_id": "20260729.6.R2",
+    "title": "20260729.6 — Engineering Documentation",
+    "status": "Pending",
+    "previous_revision": "20260729.6.R1",
+    "sha256": "cefc809c4c918b5a84f04b0e5982be096b5fb71d9ec47950f95f164eff0829a1"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R2",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R1",
+    "sha256": "ba9021eb7bb4ff3263719a1e8a118d2bc44c0aff16c4e1b9d4d65d98880fb2d1"
   }
 ]
