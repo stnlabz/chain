@@ -54,5 +54,13 @@
     "status": "Pending",
     "previous_revision": "20260816.1.R1",
     "sha256": "ba9021eb7bb4ff3263719a1e8a118d2bc44c0aff16c4e1b9d4d65d98880fb2d1"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R3",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R2",
+    "sha256": "7e437cb20139730fcc52ebe4b0e759fb1b17a20eaaf76715640dc2377ff75e42"
   }
 ]

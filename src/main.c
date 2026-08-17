@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audit.h"
 #include "document.h"
 #include "index.h"
 #include "reference.h"
@@ -26,27 +27,113 @@ static void print_help(void)
         "      APPROVED tracked revision, update the document,\n"
         "      then register the resulting controlled revision.\n"
         "\n"
+        "  chain --verify-audit <index>\n"
+        "      Verify the hash-linked chain operation record.\n"
+        "\n"
         "  chain --help\n"
         "  chain -h\n"
         "  chain help\n"
         "      Display this help information.\n"
         "\n"
+        "DOCUMENT REQUIREMENTS\n"
+        "\n"
+        "    Root Document ID: YYYYMMDD.#\n"
+        "    Revision ID: YYYYMMDD.#.R#\n"
+        "    Previous Revision: YYYYMMDD.#.R# | NONE\n"
+        "    sha256: <hash>\n"
+        "    **Status:** <status>\n"
+        "\n"
         "REFERENCE RULES\n"
         "\n"
-        "  Root-only:\n"
+        "  Root-only reference:\n"
+        "\n"
         "    - 20260729.6 — Engineering Documentation\n"
         "\n"
-        "  Resolves to the latest APPROVED revision.\n"
+        "  Resolves to the latest APPROVED tracked revision.\n"
         "\n"
-        "  Explicit:\n"
+        "  Explicit revision reference:\n"
+        "\n"
         "    - 20260729.6.R0 — Engineering Documentation\n"
         "\n"
-        "  Verifies exactly R0 and remains unchanged.\n"
+        "  Verifies exactly the named revision.\n"
         "\n"
-        "  Reference updating must operate on a new controlled\n"
-        "  revision. An already-registered revision is rejected.\n"
+        "AUDIT RECORD\n"
+        "\n"
+        "  Successful modifying operations append evidence to:\n"
+        "\n"
+        "    <index>.chainlog\n"
+        "\n"
+        "  Each record contains the hash of the previous record.\n"
+        "  Audit evidence does not independently establish\n"
+        "  organizational authority.\n"
         "\n"
     );
+}
+
+static int verify_audit_command(
+    const char* index_path)
+{
+    audit_result result;
+
+    result = audit_verify(
+        index_path
+    );
+
+    if (result != AUDIT_OK) {
+
+        printf(
+            "AUDIT:  %s\n"
+            "CHAIN:  FAIL\n",
+            audit_result_string(result)
+        );
+
+        return 1;
+    }
+
+    printf(
+        "AUDIT:  PASS\n"
+        "CHAIN:  PASS\n"
+    );
+
+    return 0;
+}
+
+static int append_audit_evidence(
+    const char* index_path,
+    const document_identity* identity,
+    const char canonical_hex[SHA256_HEX_SIZE],
+    const char* operation)
+{
+    audit_result result;
+
+    result = audit_append(
+        index_path,
+        identity,
+        canonical_hex,
+        operation
+    );
+
+    if (result != AUDIT_OK) {
+
+        fprintf(
+            stderr,
+            "AUDIT: %s\n",
+            audit_result_string(result)
+        );
+
+        fprintf(
+            stderr,
+            "CHAIN: FAIL_AUDIT\n"
+        );
+
+        return 0;
+    }
+
+    printf(
+        "AUDIT:      PASS\n"
+    );
+
+    return 1;
 }
 
 static int check_references(
@@ -123,7 +210,6 @@ static int check_references(
         else {
 
             index_revision_resolution resolution;
-
             index_resolve_result resolved;
 
             resolved =
@@ -237,7 +323,8 @@ static int verify_and_stamp_document(
 
 static int register_document(
     const char* document_path,
-    const char* index_path)
+    const char* index_path,
+    const char* operation)
 {
     document_identity identity;
 
@@ -254,6 +341,39 @@ static int register_document(
     char canonical_hex[
         SHA256_HEX_SIZE
     ];
+
+    /*
+     * Verify existing audit evidence before
+     * performing another modifying operation.
+     *
+     * No audit file yet is valid for the
+     * first audited operation.
+     */
+    {
+        audit_result audit_status;
+
+        audit_status = audit_verify(
+            index_path
+        );
+
+        if (audit_status != AUDIT_OK) {
+
+            fprintf(
+                stderr,
+                "AUDIT: %s\n",
+                audit_result_string(
+                    audit_status
+                )
+            );
+
+            fprintf(
+                stderr,
+                "CHAIN: FAIL_AUDIT_PRECHECK\n"
+            );
+
+            return 1;
+        }
+    }
 
     document_status =
         document_read_identity(
@@ -307,7 +427,9 @@ static int register_document(
     }
 
     /*
-     * Entire index does not yet exist.
+     * --------------------------------------------------------
+     * First global index record.
+     * --------------------------------------------------------
      */
     if (state == INDEX_MISSING) {
 
@@ -364,8 +486,7 @@ static int register_document(
             "ROOT CHAIN: CREATED\n"
             "INDEX:      CREATED\n"
             "DOCUMENT:   UPDATED\n"
-            "VERIFY:     PASS\n"
-            "CHAIN:      PASS\n",
+            "VERIFY:     PASS\n",
 
             identity.root_document_id,
             identity.revision_id,
@@ -373,9 +494,25 @@ static int register_document(
             canonical_hex
         );
 
+        if (!append_audit_evidence(
+            index_path,
+            &identity,
+            canonical_hex,
+            operation)) {
+
+            return 1;
+        }
+
+        printf(
+            "CHAIN:      PASS\n"
+        );
+
         return 0;
     }
 
+    /*
+     * Determine whether this root already exists.
+     */
     root_match = index_find_root(
         index_path,
         identity.root_document_id
@@ -393,7 +530,9 @@ static int register_document(
     }
 
     /*
-     * New document root inside existing index.
+     * --------------------------------------------------------
+     * New root in an existing global index.
+     * --------------------------------------------------------
      */
     if (root_match ==
         INDEX_MATCH_NONE) {
@@ -455,8 +594,7 @@ static int register_document(
             "ROOT CHAIN: CREATED\n"
             "INDEX:      UPDATED\n"
             "DOCUMENT:   UPDATED\n"
-            "VERIFY:     PASS\n"
-            "CHAIN:      PASS\n",
+            "VERIFY:     PASS\n",
 
             identity.root_document_id,
             identity.revision_id,
@@ -464,11 +602,26 @@ static int register_document(
             canonical_hex
         );
 
+        if (!append_audit_evidence(
+            index_path,
+            &identity,
+            canonical_hex,
+            operation)) {
+
+            return 1;
+        }
+
+        printf(
+            "CHAIN:      PASS\n"
+        );
+
         return 0;
     }
 
     /*
+     * --------------------------------------------------------
      * Existing root.
+     * --------------------------------------------------------
      */
     match = index_find_revision(
         index_path,
@@ -520,6 +673,9 @@ static int register_document(
         return 1;
     }
 
+    /*
+     * Required predecessor must already exist.
+     */
     match = index_find_revision(
         index_path,
         identity.root_document_id,
@@ -559,6 +715,9 @@ static int register_document(
         return 1;
     }
 
+    /*
+     * Append revision only after lineage is proven.
+     */
     if (!index_append_revision(
         index_path,
         &identity,
@@ -605,13 +764,25 @@ static int register_document(
         "LINEAGE:    VERIFIED\n"
         "INDEX:      UPDATED\n"
         "DOCUMENT:   UPDATED\n"
-        "VERIFY:     PASS\n"
-        "CHAIN:      PASS\n",
+        "VERIFY:     PASS\n",
 
         identity.root_document_id,
         identity.revision_id,
         identity.previous_revision,
         canonical_hex
+    );
+
+    if (!append_audit_evidence(
+        index_path,
+        &identity,
+        canonical_hex,
+        operation)) {
+
+        return 1;
+    }
+
+    printf(
+        "CHAIN:      PASS\n"
     );
 
     return 0;
@@ -631,10 +802,6 @@ static int update_references(
     reference_update_summary summary;
     reference_result result;
 
-    /*
-     * Validate target revision before touching
-     * the source document.
-     */
     document_status =
         document_read_identity(
             document_path,
@@ -666,6 +833,37 @@ static int update_references(
         return 1;
     }
 
+    /*
+     * Audit history must already be valid before
+     * reference rewriting can begin.
+     */
+    {
+        audit_result audit_status;
+
+        audit_status = audit_verify(
+            index_path
+        );
+
+        if (audit_status !=
+            AUDIT_OK) {
+
+            fprintf(
+                stderr,
+                "AUDIT: %s\n",
+                audit_result_string(
+                    audit_status
+                )
+            );
+
+            fprintf(
+                stderr,
+                "CHAIN: FAIL_AUDIT_PRECHECK\n"
+            );
+
+            return 1;
+        }
+    }
+
     root_match = index_find_root(
         index_path,
         identity.root_document_id
@@ -682,10 +880,6 @@ static int update_references(
         return 1;
     }
 
-    /*
-     * Existing root means this revision must
-     * not already be registered.
-     */
     if (root_match ==
         INDEX_MATCH_ONE) {
 
@@ -725,9 +919,6 @@ static int update_references(
     }
     else {
 
-        /*
-         * New root may begin only at R0.
-         */
         if (!document_is_initial_revision(
             &identity)) {
 
@@ -776,13 +967,14 @@ static int update_references(
     );
 
     /*
-     * Reference rewriting changes controlled
-     * content, so calculate/register the new
-     * revision only after rewriting completes.
+     * The normal registration path performs
+     * hashing, lineage, index registration,
+     * stamping, verification and audit append.
      */
     return register_document(
         document_path,
-        index_path
+        index_path,
+        "UPDATE_REFERENCES"
     );
 }
 
@@ -813,6 +1005,22 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    /*
+     * Audit validation.
+     */
+    if (argc == 3 &&
+        strcmp(
+            argv[1],
+            "--verify-audit") == 0) {
+
+        return verify_audit_command(
+            argv[2]
+        );
+    }
+
+    /*
+     * Read-only reference verification.
+     */
     if (argc == 4 &&
         strcmp(
             argv[1],
@@ -824,6 +1032,9 @@ int main(int argc, char** argv)
         );
     }
 
+    /*
+     * Controlled reference update.
+     */
     if (argc == 4 &&
         strcmp(
             argv[1],
@@ -835,11 +1046,15 @@ int main(int argc, char** argv)
         );
     }
 
+    /*
+     * Normal registration.
+     */
     if (argc == 3) {
 
         return register_document(
             argv[1],
-            argv[2]
+            argv[2],
+            "REGISTER"
         );
     }
 

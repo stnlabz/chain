@@ -13,7 +13,7 @@
 #define SHA256_PREFIX "sha256:"
 #define CANONICAL_SHA256_LINE "sha256: <authoritative hash>"
 
-static int hash_buffer(
+int sha256_buffer(
     const unsigned char* data,
     size_t length,
     unsigned char digest[SHA256_DIGEST_SIZE])
@@ -24,6 +24,15 @@ static int hash_buffer(
     NTSTATUS status;
 
     if (data == NULL || digest == NULL) {
+        return 0;
+    }
+
+    /*
+     * BCryptHashData takes ULONG length.
+     * Reject buffers that cannot be represented
+     * safely rather than truncating size_t.
+     */
+    if (length > ULONG_MAX) {
         return 0;
     }
 
@@ -49,7 +58,11 @@ static int hash_buffer(
     );
 
     if (!BCRYPT_SUCCESS(status)) {
-        BCryptCloseAlgorithmProvider(algorithm, 0);
+        BCryptCloseAlgorithmProvider(
+            algorithm,
+            0
+        );
+
         return 0;
     }
 
@@ -61,8 +74,14 @@ static int hash_buffer(
     );
 
     if (!BCRYPT_SUCCESS(status)) {
+
         BCryptDestroyHash(hash);
-        BCryptCloseAlgorithmProvider(algorithm, 0);
+
+        BCryptCloseAlgorithmProvider(
+            algorithm,
+            0
+        );
+
         return 0;
     }
 
@@ -74,9 +93,15 @@ static int hash_buffer(
     );
 
     BCryptDestroyHash(hash);
-    BCryptCloseAlgorithmProvider(algorithm, 0);
 
-    return BCRYPT_SUCCESS(status) ? 1 : 0;
+    BCryptCloseAlgorithmProvider(
+        algorithm,
+        0
+    );
+
+    return BCRYPT_SUCCESS(status)
+        ? 1
+        : 0;
 }
 
 int sha256_file(
@@ -98,7 +123,12 @@ int sha256_file(
         return 0;
     }
 
-    if (fopen_s(&fp, path, "rb") != 0 || fp == NULL) {
+    if (fopen_s(
+        &fp,
+        path,
+        "rb") != 0 ||
+        fp == NULL) {
+
         return 0;
     }
 
@@ -125,8 +155,14 @@ int sha256_file(
     );
 
     if (!BCRYPT_SUCCESS(status)) {
-        BCryptCloseAlgorithmProvider(algorithm, 0);
+
+        BCryptCloseAlgorithmProvider(
+            algorithm,
+            0
+        );
+
         fclose(fp);
+
         return 0;
     }
 
@@ -144,17 +180,31 @@ int sha256_file(
         );
 
         if (!BCRYPT_SUCCESS(status)) {
+
             BCryptDestroyHash(hash);
-            BCryptCloseAlgorithmProvider(algorithm, 0);
+
+            BCryptCloseAlgorithmProvider(
+                algorithm,
+                0
+            );
+
             fclose(fp);
+
             return 0;
         }
     }
 
     if (ferror(fp)) {
+
         BCryptDestroyHash(hash);
-        BCryptCloseAlgorithmProvider(algorithm, 0);
+
+        BCryptCloseAlgorithmProvider(
+            algorithm,
+            0
+        );
+
         fclose(fp);
+
         return 0;
     }
 
@@ -166,10 +216,17 @@ int sha256_file(
     );
 
     BCryptDestroyHash(hash);
-    BCryptCloseAlgorithmProvider(algorithm, 0);
+
+    BCryptCloseAlgorithmProvider(
+        algorithm,
+        0
+    );
+
     fclose(fp);
 
-    return BCRYPT_SUCCESS(status) ? 1 : 0;
+    return BCRYPT_SUCCESS(status)
+        ? 1
+        : 0;
 }
 
 int sha256_canonical_file(
@@ -199,13 +256,20 @@ int sha256_canonical_file(
         return 0;
     }
 
-    if (fopen_s(&fp, path, "rb") != 0 ||
+    if (fopen_s(
+        &fp,
+        path,
+        "rb") != 0 ||
         fp == NULL) {
 
         return 0;
     }
 
-    if (fseek(fp, 0, SEEK_END) != 0) {
+    if (fseek(
+        fp,
+        0,
+        SEEK_END) != 0) {
+
         fclose(fp);
         return 0;
     }
@@ -217,7 +281,11 @@ int sha256_canonical_file(
         return 0;
     }
 
-    if (fseek(fp, 0, SEEK_SET) != 0) {
+    if (fseek(
+        fp,
+        0,
+        SEEK_SET) != 0) {
+
         fclose(fp);
         return 0;
     }
@@ -241,7 +309,9 @@ int sha256_canonical_file(
     fclose(fp);
     fp = NULL;
 
-    if (bytes_read != (size_t)file_size) {
+    if (bytes_read !=
+        (size_t)file_size) {
+
         free(input);
         return 0;
     }
@@ -273,7 +343,9 @@ int sha256_canonical_file(
         line_end = i;
 
         if (
-            (line_end - line_start) >= prefix_length &&
+            (line_end - line_start) >=
+            prefix_length &&
+
             memcmp(
                 input + line_start,
                 SHA256_PREFIX,
@@ -302,7 +374,8 @@ int sha256_canonical_file(
                 line_length
             );
 
-            output_index += line_length;
+            output_index +=
+                line_length;
         }
 
         /*
@@ -339,7 +412,7 @@ int sha256_canonical_file(
         return 0;
     }
 
-    if (!hash_buffer(
+    if (!sha256_buffer(
         canonical,
         output_index,
         digest)) {
@@ -441,7 +514,9 @@ int sha256_stamp_file(
     fclose(input_fp);
     input_fp = NULL;
 
-    if (bytes_read != (size_t)file_size) {
+    if (bytes_read !=
+        (size_t)file_size) {
+
         free(input);
         return 0;
     }
@@ -483,6 +558,7 @@ int sha256_stamp_file(
 
         free(temp_path);
         free(input);
+
         return 0;
     }
 
@@ -502,7 +578,9 @@ int sha256_stamp_file(
         line_end = i;
 
         if (
-            (line_end - line_start) >= prefix_length &&
+            (line_end - line_start) >=
+            prefix_length &&
+
             memcmp(
                 input + line_start,
                 SHA256_PREFIX,
@@ -613,7 +691,6 @@ int sha256_stamp_file(
     if (sha256_fields != 1) {
 
         fclose(output_fp);
-
         DeleteFileA(temp_path);
 
         free(temp_path);
@@ -624,7 +701,6 @@ int sha256_stamp_file(
     if (fflush(output_fp) != 0) {
 
         fclose(output_fp);
-
         DeleteFileA(temp_path);
 
         free(temp_path);
