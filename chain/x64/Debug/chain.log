@@ -1,8 +1,10 @@
 ﻿  audit.c
+  commit.c
   document.c
   index.c
   main.c
   reference.c
   sha256.c
+  transaction.c
   Generating Code...
   chain.vcxproj -> C:\Users\Poe\Documents\GitHub\chain\x64\Debug\chain.exe

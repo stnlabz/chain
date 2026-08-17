@@ -33,6 +33,12 @@
     <ClInclude Include="include\audit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\transaction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\commit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.c">
@@ -51,6 +57,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\audit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\transaction.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\commit.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,6 +1,8 @@
 C:\Users\Poe\Documents\GitHub\chain\src\audit.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\audit.obj
+C:\Users\Poe\Documents\GitHub\chain\src\commit.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\commit.obj
 C:\Users\Poe\Documents\GitHub\chain\src\document.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\document.obj
 C:\Users\Poe\Documents\GitHub\chain\src\index.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\index.obj
 C:\Users\Poe\Documents\GitHub\chain\src\main.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\main.obj
 C:\Users\Poe\Documents\GitHub\chain\src\reference.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\reference.obj
 C:\Users\Poe\Documents\GitHub\chain\src\sha256.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\sha256.obj
+C:\Users\Poe\Documents\GitHub\chain\src\transaction.c;C:\Users\Poe\Documents\GitHub\chain\chain\x64\Debug\transaction.obj

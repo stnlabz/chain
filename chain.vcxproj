@@ -142,18 +142,22 @@
   <ItemGroup>
     <ClInclude Include="include\audit.h" />
     <ClInclude Include="include\chain.h" />
+    <ClInclude Include="include\commit.h" />
     <ClInclude Include="include\document.h" />
     <ClInclude Include="include\index.h" />
     <ClInclude Include="include\reference.h" />
     <ClInclude Include="include\sha256.h" />
+    <ClInclude Include="include\transaction.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\audit.c" />
+    <ClCompile Include="src\commit.c" />
     <ClCompile Include="src\document.c" />
     <ClCompile Include="src\index.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\reference.c" />
     <ClCompile Include="src\sha256.c" />
+    <ClCompile Include="src\transaction.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

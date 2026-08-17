@@ -16,38 +16,6 @@
     "sha256": "ad120e46b2e10e950d27b29ae83fb4aa953fc1da13e062c9ec05a38fe79357e0"
   },
   {
-    "root_document_id": "20260729.6",
-    "revision_id": "20260729.6.R0",
-    "title": "20260729.6 — Engineering Documentation",
-    "status": "Approved",
-    "previous_revision": "NONE",
-    "sha256": "4fd74177160d097bf0aba99a0d91c9d3b403a19c97917b4379b2884f96781a86"
-  },
-  {
-    "root_document_id": "20260729.8",
-    "revision_id": "20260729.8.R0",
-    "title": "20260729.8 — Operational Doctrine",
-    "status": "Approved",
-    "previous_revision": "NONE",
-    "sha256": "a4f34e018c2c9bd78668e0bcaede7e7f137d39a309f0e992cbaa3081aca9605a"
-  },
-  {
-    "root_document_id": "20260729.6",
-    "revision_id": "20260729.6.R1",
-    "title": "20260729.6 — Engineering Documentation",
-    "status": "Pending",
-    "previous_revision": "20260729.6.R0",
-    "sha256": "0b0d57228105be5e10f05dacdd9f0f0f9a70533c80448dff16998c9a7a820d8a"
-  },
-  {
-    "root_document_id": "20260729.6",
-    "revision_id": "20260729.6.R2",
-    "title": "20260729.6 — Engineering Documentation",
-    "status": "Pending",
-    "previous_revision": "20260729.6.R1",
-    "sha256": "cefc809c4c918b5a84f04b0e5982be096b5fb71d9ec47950f95f164eff0829a1"
-  },
-  {
     "root_document_id": "20260816.1",
     "revision_id": "20260816.1.R2",
     "title": "20260816.1 — Eligability",
@@ -62,5 +30,53 @@
     "status": "Pending",
     "previous_revision": "20260816.1.R2",
     "sha256": "7e437cb20139730fcc52ebe4b0e759fb1b17a20eaaf76715640dc2377ff75e42"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R4",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R3",
+    "sha256": "8b8f47393990c182e8503e30231466b6ad5d4c45b19babae841cd3f025683560"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R5",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R4",
+    "sha256": "ed9f39e2ce13582330214609dd305540f0c87e596d01fde0d35090ca0e765662"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R6",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R5",
+    "sha256": "639d410c8335e1d379b27c7b11d805e874b1856f336fa0488fd404b732583259"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R7",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R6",
+    "sha256": "ea1eee363b844713144cbda9966ff4dd007736cee44864e3899eb4ddea520fad"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R8",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R7",
+    "sha256": "d203f7e3a432dd9cd5aa33726e6a20edeedef6930426b1df450ae3dc579aec44"
+  },
+  {
+    "root_document_id": "20260816.1",
+    "revision_id": "20260816.1.R9",
+    "title": "20260816.1 — Eligability",
+    "status": "Pending",
+    "previous_revision": "20260816.1.R8",
+    "sha256": "3cb7697e751d16feb07620e5a0410a5059558b1203ccca92467f2f4e3b8cfdff"
   }
 ]

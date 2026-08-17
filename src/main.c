@@ -2,10 +2,12 @@
 #include <string.h>
 
 #include "audit.h"
+#include "commit.h"
 #include "document.h"
 #include "index.h"
 #include "reference.h"
 #include "sha256.h"
+#include "transaction.h"
 
 static void print_help(void)
 {
@@ -16,68 +18,341 @@ static void print_help(void)
         "USAGE\n"
         "\n"
         "  chain <document> <index>\n"
-        "      Register a controlled document revision.\n"
+        "      Process a controlled revision and commit verified\n"
+        "      authoritative artifacts to C:\\stn-labz\\policies.\n"
         "\n"
         "  chain --check-references <document> <index>\n"
         "      Resolve and verify controlled references.\n"
-        "      No files are modified.\n"
+        "      Read-only.\n"
         "\n"
         "  chain --update-references <document> <index>\n"
-        "      Resolve root-only references to the latest\n"
-        "      APPROVED tracked revision, update the document,\n"
-        "      then register the resulting controlled revision.\n"
+        "      Resolve root references, update the new revision,\n"
+        "      process it, and commit authoritative artifacts.\n"
         "\n"
         "  chain --verify-audit <index>\n"
-        "      Verify the hash-linked chain operation record.\n"
+        "      Verify the working hash-linked audit record.\n"
+        "\n"
+        "  chain --transaction-status\n"
+        "      Display transaction/recovery status.\n"
+        "\n"
+        "  chain --recover\n"
+        "      Recover an incomplete transaction when recorded\n"
+        "      evidence supports deterministic forward recovery.\n"
+        "\n"
+        "      PREPARED may be safely abandoned.\n"
+        "      INDEX_COMMITTED resumes document and audit commit.\n"
+        "      DOCUMENT_COMMITTED resumes audit commit.\n"
+        "      AUDIT_COMMITTED performs final verification.\n"
+        "      VERIFIED performs cleanup and completion.\n"
+        "\n"
+        "      Recovery fails closed when evidence does not match.\n"
         "\n"
         "  chain --help\n"
         "  chain -h\n"
         "  chain help\n"
-        "      Display this help information.\n"
         "\n"
-        "DOCUMENT REQUIREMENTS\n"
+        "AUTHORITATIVE STORE\n"
         "\n"
-        "    Root Document ID: YYYYMMDD.#\n"
-        "    Revision ID: YYYYMMDD.#.R#\n"
-        "    Previous Revision: YYYYMMDD.#.R# | NONE\n"
-        "    sha256: <hash>\n"
-        "    **Status:** <status>\n"
+        "  C:\\stn-labz\\policies\n"
         "\n"
-        "REFERENCE RULES\n"
+        "TRANSACTION WORKSPACE\n"
         "\n"
-        "  Root-only reference:\n"
-        "\n"
-        "    - 20260729.6 — Engineering Documentation\n"
-        "\n"
-        "  Resolves to the latest APPROVED tracked revision.\n"
-        "\n"
-        "  Explicit revision reference:\n"
-        "\n"
-        "    - 20260729.6.R0 — Engineering Documentation\n"
-        "\n"
-        "  Verifies exactly the named revision.\n"
-        "\n"
-        "AUDIT RECORD\n"
-        "\n"
-        "  Successful modifying operations append evidence to:\n"
-        "\n"
-        "    <index>.chainlog\n"
-        "\n"
-        "  Each record contains the hash of the previous record.\n"
-        "  Audit evidence does not independently establish\n"
-        "  organizational authority.\n"
+        "  C:\\stn-labz\\policies\\.chain\n"
         "\n"
     );
 }
 
+static int transaction_status_command(void)
+{
+    transaction_status status;
+    transaction_result result;
+
+    result =
+        transaction_get_status(
+            &status
+        );
+
+    if (result !=
+        TRANSACTION_OK) {
+
+        printf(
+            "TRANSACTION: %s\n"
+            "CHAIN:       FAIL\n",
+            transaction_result_string(
+                result
+            )
+        );
+
+        return 1;
+    }
+
+    if (status.stage ==
+        TRANSACTION_STAGE_NONE) {
+
+        printf(
+            "TRANSACTION: CLEAR\n"
+            "CHAIN:       PASS\n"
+        );
+
+        return 0;
+    }
+
+    printf(
+        "TRANSACTION: RECOVERY REQUIRED\n"
+        "VERSION:     %d\n"
+        "STATE:       %s\n"
+        "OPERATION:   %s\n"
+        "DOCUMENT:    %s\n"
+        "INDEX:       %s\n"
+        "POLICY ROOT: %s\n"
+        "CHAIN:       FAIL\n",
+        status.version,
+        transaction_stage_string(
+            status.stage
+        ),
+        status.operation,
+        status.document_path,
+        status.index_path,
+        status.policy_root
+    );
+
+    return 1;
+}
+
+static int recover_command(void)
+{
+    transaction_status status;
+
+    transaction_result tx_result;
+
+    commit_result commit_status;
+    commit_result cleanup_status;
+
+    tx_result =
+        transaction_get_status(
+            &status
+        );
+
+    if (tx_result !=
+        TRANSACTION_OK) {
+
+        printf(
+            "RECOVERY: %s\n"
+            "CHAIN:    FAIL\n",
+            transaction_result_string(
+                tx_result
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * Nothing to recover.
+     */
+    if (status.stage ==
+        TRANSACTION_STAGE_NONE) {
+
+        printf(
+            "RECOVERY:    NOT REQUIRED\n"
+            "TRANSACTION: CLEAR\n"
+            "CHAIN:       PASS\n"
+        );
+
+        return 0;
+    }
+
+    /*
+     * --------------------------------------------------------
+     * PREPARED
+     *
+     * No authoritative artifact was recorded as
+     * committed. Prepared artifacts may therefore
+     * be removed and the transaction abandoned.
+     * --------------------------------------------------------
+     */
+    if (status.stage ==
+        TRANSACTION_STAGE_PREPARED) {
+
+        cleanup_status =
+            commit_cleanup_transaction_artifacts();
+
+        if (cleanup_status !=
+            COMMIT_OK) {
+
+            printf(
+                "RECOVERY: %s\n"
+                "CHAIN:    FAIL\n",
+                commit_result_string(
+                    cleanup_status
+                )
+            );
+
+            return 1;
+        }
+
+        tx_result =
+            transaction_abandon_prepared();
+
+        if (tx_result !=
+            TRANSACTION_OK) {
+
+            printf(
+                "RECOVERY: %s\n"
+                "CHAIN:    FAIL\n",
+                transaction_result_string(
+                    tx_result
+                )
+            );
+
+            return 1;
+        }
+
+        printf(
+            "RECOVERY:    PREPARED TRANSACTION ABANDONED\n"
+            "TRANSACTION: CLEAR\n"
+            "CHAIN:       PASS\n"
+        );
+
+        return 0;
+    }
+
+    /*
+     * --------------------------------------------------------
+     * COMMITTED / VERIFIED STAGES
+     *
+     * commit_recover() performs deterministic,
+     * forward-only recovery using prepared artifacts
+     * as the intended committed state.
+     *
+     * It refuses recovery if authoritative evidence
+     * does not match the recorded transaction state.
+     * --------------------------------------------------------
+     */
+    commit_status =
+        commit_recover(
+            &status
+        );
+
+    if (commit_status !=
+        COMMIT_OK) {
+
+        printf(
+            "RECOVERY:    %s\n"
+            "STATE:       %s\n"
+            "TRANSACTION: PRESERVED\n"
+            "CHAIN:       FAIL\n",
+            commit_result_string(
+                commit_status
+            ),
+            transaction_stage_string(
+                status.stage
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * commit_recover() must leave the transaction
+     * at VERIFIED before completion is permitted.
+     */
+    tx_result =
+        transaction_get_status(
+            &status
+        );
+
+    if (tx_result !=
+        TRANSACTION_OK) {
+
+        printf(
+            "RECOVERY: %s\n"
+            "CHAIN:    FAIL\n",
+            transaction_result_string(
+                tx_result
+            )
+        );
+
+        return 1;
+    }
+
+    if (status.stage !=
+        TRANSACTION_STAGE_VERIFIED) {
+
+        printf(
+            "RECOVERY:    FAIL_RECOVERY_NOT_VERIFIED\n"
+            "STATE:       %s\n"
+            "TRANSACTION: PRESERVED\n"
+            "CHAIN:       FAIL\n",
+            transaction_stage_string(
+                status.stage
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * Authoritative state is now VERIFIED.
+     * Prepared artifacts are no longer needed.
+     */
+    cleanup_status =
+        commit_cleanup_transaction_artifacts();
+
+    if (cleanup_status !=
+        COMMIT_OK) {
+
+        printf(
+            "RECOVERY:    %s\n"
+            "STATE:       VERIFIED\n"
+            "TRANSACTION: PRESERVED\n"
+            "CHAIN:       FAIL\n",
+            commit_result_string(
+                cleanup_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * VERIFIED is the only committed state from
+     * which transaction_complete() may remove
+     * transaction.state.
+     */
+    tx_result =
+        transaction_complete();
+
+    if (tx_result !=
+        TRANSACTION_OK) {
+
+        printf(
+            "RECOVERY: %s\n"
+            "CHAIN:    FAIL\n",
+            transaction_result_string(
+                tx_result
+            )
+        );
+
+        return 1;
+    }
+
+    printf(
+        "RECOVERY:    FORWARD RECOVERY COMPLETE\n"
+        "TRANSACTION: CLEAR\n"
+        "CHAIN:       PASS\n"
+    );
+
+    return 0;
+}
+
 static int verify_audit_command(
-    const char* index_path)
+    const char *index_path)
 {
     audit_result result;
 
-    result = audit_verify(
-        index_path
-    );
+    result =
+        audit_verify(index_path);
 
     if (result != AUDIT_OK) {
 
@@ -98,47 +373,9 @@ static int verify_audit_command(
     return 0;
 }
 
-static int append_audit_evidence(
-    const char* index_path,
-    const document_identity* identity,
-    const char canonical_hex[SHA256_HEX_SIZE],
-    const char* operation)
-{
-    audit_result result;
-
-    result = audit_append(
-        index_path,
-        identity,
-        canonical_hex,
-        operation
-    );
-
-    if (result != AUDIT_OK) {
-
-        fprintf(
-            stderr,
-            "AUDIT: %s\n",
-            audit_result_string(result)
-        );
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_AUDIT\n"
-        );
-
-        return 0;
-    }
-
-    printf(
-        "AUDIT:      PASS\n"
-    );
-
-    return 1;
-}
-
 static int check_references(
-    const char* document_path,
-    const char* index_path)
+    const char *document_path,
+    const char *index_path)
 {
     reference_list references;
     reference_result result;
@@ -146,23 +383,28 @@ static int check_references(
     size_t i;
     int failures = 0;
 
-    result = reference_read_document(
-        document_path,
-        &references
-    );
+    result =
+        reference_read_document(
+            document_path,
+            &references
+        );
 
-    if (result != REFERENCE_OK) {
+    if (result !=
+        REFERENCE_OK) {
 
         fprintf(
             stderr,
             "CHAIN: %s\n",
-            reference_result_string(result)
+            reference_result_string(
+                result
+            )
         );
 
         return 1;
     }
 
-    if (index_get_state(index_path) !=
+    if (index_get_state(
+            index_path) !=
         INDEX_EXISTS) {
 
         fprintf(
@@ -174,23 +416,25 @@ static int check_references(
     }
 
     for (i = 0;
-        i < references.count;
-        ++i) {
+         i < references.count;
+         ++i) {
 
-        const document_reference* reference =
+        const document_reference *reference =
             &references.items[i];
 
         if (reference->explicit_revision) {
 
             index_match_result match;
 
-            match = index_find_revision(
-                index_path,
-                reference->root_document_id,
-                reference->revision_id
-            );
+            match =
+                index_find_revision(
+                    index_path,
+                    reference->root_document_id,
+                    reference->revision_id
+                );
 
-            if (match == INDEX_MATCH_ONE) {
+            if (match ==
+                INDEX_MATCH_ONE) {
 
                 printf(
                     "REFERENCE: %-24s VERIFIED\n",
@@ -210,6 +454,7 @@ static int check_references(
         else {
 
             index_revision_resolution resolution;
+
             index_resolve_result resolved;
 
             resolved =
@@ -272,109 +517,50 @@ static int check_references(
     return 0;
 }
 
-static int verify_and_stamp_document(
-    const char* document_path,
-    const char canonical_hex[SHA256_HEX_SIZE],
-    const unsigned char canonical_digest[SHA256_DIGEST_SIZE])
-{
-    unsigned char verification_digest[
-        SHA256_DIGEST_SIZE
-    ];
-
-    if (!sha256_stamp_file(
-        document_path,
-        canonical_hex)) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_DOCUMENT_UPDATE\n"
-        );
-
-        return 0;
-    }
-
-    if (!sha256_canonical_file(
-        document_path,
-        verification_digest)) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_POST_WRITE_HASH\n"
-        );
-
-        return 0;
-    }
-
-    if (memcmp(
-        canonical_digest,
-        verification_digest,
-        SHA256_DIGEST_SIZE) != 0) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_POST_WRITE_VERIFY\n"
-        );
-
-        return 0;
-    }
-
-    return 1;
-}
-
-static int register_document(
-    const char* document_path,
-    const char* index_path,
-    const char* operation)
+static int preflight_registration(
+    const char *document_path,
+    const char *index_path)
 {
     document_identity identity;
 
     document_result document_status;
 
-    index_state state;
-    index_match_result match;
-    index_match_result root_match;
-
-    unsigned char canonical_digest[
+    unsigned char digest[
         SHA256_DIGEST_SIZE
     ];
 
-    char canonical_hex[
-        SHA256_HEX_SIZE
-    ];
+    index_state state;
+
+    index_match_result root_match;
+    index_match_result match;
+
+    audit_result audit_status;
 
     /*
-     * Verify existing audit evidence before
-     * performing another modifying operation.
-     *
-     * No audit file yet is valid for the
-     * first audited operation.
+     * Existing audit evidence must be valid.
      */
-    {
-        audit_result audit_status;
+    audit_status =
+        audit_verify(index_path);
 
-        audit_status = audit_verify(
-            index_path
+    if (audit_status !=
+        AUDIT_OK) {
+
+        fprintf(
+            stderr,
+            "AUDIT: %s\n"
+            "CHAIN: FAIL_AUDIT_PRECHECK\n",
+            audit_result_string(
+                audit_status
+            )
         );
 
-        if (audit_status != AUDIT_OK) {
-
-            fprintf(
-                stderr,
-                "AUDIT: %s\n",
-                audit_result_string(
-                    audit_status
-                )
-            );
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_AUDIT_PRECHECK\n"
-            );
-
-            return 1;
-        }
+        return 1;
     }
 
+    /*
+     * Document must be readable and contain valid
+     * controlled metadata.
+     */
     document_status =
         document_read_identity(
             document_path,
@@ -395,9 +581,13 @@ static int register_document(
         return 1;
     }
 
+    /*
+     * Canonical hash must be calculable before
+     * entering transaction state.
+     */
     if (!sha256_canonical_file(
-        document_path,
-        canonical_digest)) {
+            document_path,
+            digest)) {
 
         fprintf(
             stderr,
@@ -407,16 +597,13 @@ static int register_document(
         return 1;
     }
 
-    sha256_to_hex(
-        canonical_digest,
-        canonical_hex
-    );
+    state =
+        index_get_state(
+            index_path
+        );
 
-    state = index_get_state(
-        index_path
-    );
-
-    if (state == INDEX_ERROR) {
+    if (state ==
+        INDEX_ERROR) {
 
         fprintf(
             stderr,
@@ -427,14 +614,13 @@ static int register_document(
     }
 
     /*
-     * --------------------------------------------------------
-     * First global index record.
-     * --------------------------------------------------------
+     * First global index.
      */
-    if (state == INDEX_MISSING) {
+    if (state ==
+        INDEX_MISSING) {
 
         if (!document_is_initial_revision(
-            &identity)) {
+                &identity)) {
 
             fprintf(
                 stderr,
@@ -444,79 +630,14 @@ static int register_document(
             return 1;
         }
 
-        if (!index_create_initial(
-            index_path,
-            &identity,
-            canonical_hex)) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_INDEX_CREATE\n"
-            );
-
-            return 1;
-        }
-
-        if (!verify_and_stamp_document(
-            document_path,
-            canonical_hex,
-            canonical_digest)) {
-
-            return 1;
-        }
-
-        if (!index_verify_initial(
-            index_path,
-            &identity,
-            canonical_hex)) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_FINAL_INDEX_VERIFY\n"
-            );
-
-            return 1;
-        }
-
-        printf(
-            "ROOT:       %s\n"
-            "REVISION:   %s\n"
-            "PREVIOUS:   %s\n"
-            "SHA-256:    %s\n"
-            "ROOT CHAIN: CREATED\n"
-            "INDEX:      CREATED\n"
-            "DOCUMENT:   UPDATED\n"
-            "VERIFY:     PASS\n",
-
-            identity.root_document_id,
-            identity.revision_id,
-            identity.previous_revision,
-            canonical_hex
-        );
-
-        if (!append_audit_evidence(
-            index_path,
-            &identity,
-            canonical_hex,
-            operation)) {
-
-            return 1;
-        }
-
-        printf(
-            "CHAIN:      PASS\n"
-        );
-
         return 0;
     }
 
-    /*
-     * Determine whether this root already exists.
-     */
-    root_match = index_find_root(
-        index_path,
-        identity.root_document_id
-    );
+    root_match =
+        index_find_root(
+            index_path,
+            identity.root_document_id
+        );
 
     if (root_match ==
         INDEX_MATCH_ERROR) {
@@ -530,15 +651,13 @@ static int register_document(
     }
 
     /*
-     * --------------------------------------------------------
-     * New root in an existing global index.
-     * --------------------------------------------------------
+     * New root inside existing global index.
      */
     if (root_match ==
         INDEX_MATCH_NONE) {
 
         if (!document_is_initial_revision(
-            &identity)) {
+                &identity)) {
 
             fprintf(
                 stderr,
@@ -548,86 +667,19 @@ static int register_document(
             return 1;
         }
 
-        if (!index_append_revision(
-            index_path,
-            &identity,
-            canonical_hex)) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_ROOT_CHAIN_APPEND\n"
-            );
-
-            return 1;
-        }
-
-        match = index_find_revision(
-            index_path,
-            identity.root_document_id,
-            identity.revision_id
-        );
-
-        if (match !=
-            INDEX_MATCH_ONE) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_NEW_ROOT_VERIFY\n"
-            );
-
-            return 1;
-        }
-
-        if (!verify_and_stamp_document(
-            document_path,
-            canonical_hex,
-            canonical_digest)) {
-
-            return 1;
-        }
-
-        printf(
-            "ROOT:       %s\n"
-            "REVISION:   %s\n"
-            "PREVIOUS:   %s\n"
-            "SHA-256:    %s\n"
-            "ROOT CHAIN: CREATED\n"
-            "INDEX:      UPDATED\n"
-            "DOCUMENT:   UPDATED\n"
-            "VERIFY:     PASS\n",
-
-            identity.root_document_id,
-            identity.revision_id,
-            identity.previous_revision,
-            canonical_hex
-        );
-
-        if (!append_audit_evidence(
-            index_path,
-            &identity,
-            canonical_hex,
-            operation)) {
-
-            return 1;
-        }
-
-        printf(
-            "CHAIN:      PASS\n"
-        );
-
         return 0;
     }
 
     /*
-     * --------------------------------------------------------
-     * Existing root.
-     * --------------------------------------------------------
+     * Existing root:
+     * proposed revision must not already exist.
      */
-    match = index_find_revision(
-        index_path,
-        identity.root_document_id,
-        identity.revision_id
-    );
+    match =
+        index_find_revision(
+            index_path,
+            identity.root_document_id,
+            identity.revision_id
+        );
 
     if (match ==
         INDEX_MATCH_ERROR) {
@@ -663,7 +715,7 @@ static int register_document(
     }
 
     if (document_is_initial_revision(
-        &identity)) {
+            &identity)) {
 
         fprintf(
             stderr,
@@ -674,13 +726,14 @@ static int register_document(
     }
 
     /*
-     * Required predecessor must already exist.
+     * Predecessor must exist exactly once.
      */
-    match = index_find_revision(
-        index_path,
-        identity.root_document_id,
-        identity.previous_revision
-    );
+    match =
+        index_find_revision(
+            index_path,
+            identity.root_document_id,
+            identity.previous_revision
+        );
 
     if (match ==
         INDEX_MATCH_ERROR) {
@@ -715,236 +768,323 @@ static int register_document(
         return 1;
     }
 
-    /*
-     * Append revision only after lineage is proven.
-     */
-    if (!index_append_revision(
-        index_path,
-        &identity,
-        canonical_hex)) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_INDEX_APPEND\n"
-        );
-
-        return 1;
-    }
-
-    match = index_find_revision(
-        index_path,
-        identity.root_document_id,
-        identity.revision_id
-    );
-
-    if (match !=
-        INDEX_MATCH_ONE) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_NEW_REVISION_VERIFY\n"
-        );
-
-        return 1;
-    }
-
-    if (!verify_and_stamp_document(
-        document_path,
-        canonical_hex,
-        canonical_digest)) {
-
-        return 1;
-    }
-
-    printf(
-        "ROOT:       %s\n"
-        "REVISION:   %s\n"
-        "PREVIOUS:   %s\n"
-        "SHA-256:    %s\n"
-        "LINEAGE:    VERIFIED\n"
-        "INDEX:      UPDATED\n"
-        "DOCUMENT:   UPDATED\n"
-        "VERIFY:     PASS\n",
-
-        identity.root_document_id,
-        identity.revision_id,
-        identity.previous_revision,
-        canonical_hex
-    );
-
-    if (!append_audit_evidence(
-        index_path,
-        &identity,
-        canonical_hex,
-        operation)) {
-
-        return 1;
-    }
-
-    printf(
-        "CHAIN:      PASS\n"
-    );
-
     return 0;
 }
 
-static int update_references(
-    const char* document_path,
-    const char* index_path)
+static int process_working_revision(
+    const char *document_path,
+    const char *index_path,
+    const char *operation,
+    document_identity *final_identity,
+    char final_sha256[SHA256_HEX_SIZE])
 {
     document_identity identity;
 
-    document_result document_status;
+    unsigned char canonical_digest[
+        SHA256_DIGEST_SIZE
+    ];
 
-    index_match_result match;
+    unsigned char verification_digest[
+        SHA256_DIGEST_SIZE
+    ];
+
+    char canonical_hex[
+        SHA256_HEX_SIZE
+    ];
+
+    index_state state;
+
     index_match_result root_match;
+    index_match_result match;
 
-    reference_update_summary summary;
-    reference_result result;
+    audit_result audit_status;
 
-    document_status =
-        document_read_identity(
+    if (document_read_identity(
             document_path,
-            &identity
-        );
-
-    if (document_status !=
+            &identity) !=
         DOCUMENT_OK) {
 
-        fprintf(
-            stderr,
-            "CHAIN: %s\n",
-            document_result_string(
-                document_status
-            )
-        );
+        return 1;
+    }
+
+    if (!sha256_canonical_file(
+            document_path,
+            canonical_digest)) {
 
         return 1;
     }
 
-    if (index_get_state(index_path) !=
-        INDEX_EXISTS) {
+    sha256_to_hex(
+        canonical_digest,
+        canonical_hex
+    );
 
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_INDEX_MISSING\n"
-        );
-
-        return 1;
-    }
-
-    /*
-     * Audit history must already be valid before
-     * reference rewriting can begin.
-     */
-    {
-        audit_result audit_status;
-
-        audit_status = audit_verify(
+    state =
+        index_get_state(
             index_path
         );
 
-        if (audit_status !=
-            AUDIT_OK) {
+    /*
+     * First global index.
+     */
+    if (state ==
+        INDEX_MISSING) {
 
-            fprintf(
-                stderr,
-                "AUDIT: %s\n",
-                audit_result_string(
-                    audit_status
-                )
-            );
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_AUDIT_PRECHECK\n"
-            );
-
-            return 1;
-        }
-    }
-
-    root_match = index_find_root(
-        index_path,
-        identity.root_document_id
-    );
-
-    if (root_match ==
-        INDEX_MATCH_ERROR) {
-
-        fprintf(
-            stderr,
-            "CHAIN: FAIL_ROOT_LOOKUP\n"
-        );
-
-        return 1;
-    }
-
-    if (root_match ==
-        INDEX_MATCH_ONE) {
-
-        match = index_find_revision(
-            index_path,
-            identity.root_document_id,
-            identity.revision_id
-        );
-
-        if (match !=
-            INDEX_MATCH_NONE) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_REVISION_ALREADY_EXISTS\n"
-            );
-
-            return 1;
-        }
-
-        match = index_find_revision(
-            index_path,
-            identity.root_document_id,
-            identity.previous_revision
-        );
-
-        if (match !=
-            INDEX_MATCH_ONE) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_PREDECESSOR_NOT_FOUND\n"
-            );
+        if (!index_create_initial(
+                index_path,
+                &identity,
+                canonical_hex)) {
 
             return 1;
         }
     }
     else {
 
-        if (!document_is_initial_revision(
-            &identity)) {
-
-            fprintf(
-                stderr,
-                "CHAIN: FAIL_MISSING_PREDECESSOR_CHAIN\n"
+        root_match =
+            index_find_root(
+                index_path,
+                identity.root_document_id
             );
+
+        if (root_match ==
+            INDEX_MATCH_ERROR) {
+
+            return 1;
+        }
+
+        /*
+         * index_append_revision() handles both:
+         *
+         * new R0 root inside existing index
+         * later revision inside existing root
+         */
+        if (!index_append_revision(
+                index_path,
+                &identity,
+                canonical_hex)) {
 
             return 1;
         }
     }
 
-    result = reference_update_document(
-        document_path,
-        index_path,
-        &summary
-    );
+    match =
+        index_find_revision(
+            index_path,
+            identity.root_document_id,
+            identity.revision_id
+        );
 
-    if (result !=
-        REFERENCE_OK) {
+    if (match !=
+        INDEX_MATCH_ONE) {
+
+        return 1;
+    }
+
+    /*
+     * Stamp working document.
+     */
+    if (!sha256_stamp_file(
+            document_path,
+            canonical_hex)) {
+
+        return 1;
+    }
+
+    /*
+     * Canonical digest must remain invariant
+     * after authoritative hash insertion.
+     */
+    if (!sha256_canonical_file(
+            document_path,
+            verification_digest)) {
+
+        return 1;
+    }
+
+    if (memcmp(
+            canonical_digest,
+            verification_digest,
+            SHA256_DIGEST_SIZE) != 0) {
+
+        return 1;
+    }
+
+    /*
+     * Append working audit evidence.
+     */
+    audit_status =
+        audit_append(
+            index_path,
+            &identity,
+            canonical_hex,
+            operation
+        );
+
+    if (audit_status !=
+        AUDIT_OK) {
+
+        return 1;
+    }
+
+    if (audit_verify(
+            index_path) !=
+        AUDIT_OK) {
+
+        return 1;
+    }
+
+    if (final_identity != NULL) {
+
+        *final_identity =
+            identity;
+    }
+
+    if (final_sha256 != NULL) {
+
+        strcpy_s(
+            final_sha256,
+            SHA256_HEX_SIZE,
+            canonical_hex
+        );
+    }
+
+    return 0;
+}
+
+static int finish_authoritative_commit(
+    const char *document_path,
+    const char *index_path,
+    const char *operation)
+{
+    commit_plan plan;
+
+    commit_result commit_status;
+
+    transaction_result tx_status;
+
+    document_identity identity;
+
+    char canonical_hex[
+        SHA256_HEX_SIZE
+    ];
+
+    /*
+     * Build and verify the new working state.
+     */
+    if (process_working_revision(
+            document_path,
+            index_path,
+            operation,
+            &identity,
+            canonical_hex) != 0) {
 
         fprintf(
             stderr,
-            "CHAIN: %s\n",
-            reference_result_string(
-                result
+            "WORKING:     FAIL\n"
+            "TRANSACTION: INCOMPLETE\n"
+            "CHAIN:       RECOVERY_REQUIRED\n"
+        );
+
+        return 1;
+    }
+
+    /*
+     * Create and independently verify all
+     * prepared authoritative artifacts.
+     */
+    commit_status =
+        commit_prepare(
+            document_path,
+            index_path,
+            &plan
+        );
+
+    if (commit_status !=
+        COMMIT_OK) {
+
+        fprintf(
+            stderr,
+            "COMMIT:      %s\n"
+            "TRANSACTION: INCOMPLETE\n"
+            "CHAIN:       RECOVERY_REQUIRED\n",
+            commit_result_string(
+                commit_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * Forward authoritative commit:
+     *
+     * index
+     * document
+     * audit
+     * final verification
+     */
+    commit_status =
+        commit_apply(
+            &plan
+        );
+
+    if (commit_status !=
+        COMMIT_OK) {
+
+        fprintf(
+            stderr,
+            "COMMIT:      %s\n"
+            "TRANSACTION: INCOMPLETE\n"
+            "CHAIN:       RECOVERY_REQUIRED\n",
+            commit_result_string(
+                commit_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * We are VERIFIED at this point.
+     * Prepared artifacts can now disappear.
+     */
+    commit_status =
+        commit_cleanup_prepared(
+            &plan
+        );
+
+    if (commit_status !=
+        COMMIT_OK) {
+
+        fprintf(
+            stderr,
+            "COMMIT:      %s\n"
+            "TRANSACTION: RECOVERY_REQUIRED\n"
+            "CHAIN:       FAIL\n",
+            commit_result_string(
+                commit_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * VERIFIED is the only state permitted
+     * to complete/remove transaction.state.
+     */
+    tx_status =
+        transaction_complete();
+
+    if (tx_status !=
+        TRANSACTION_OK) {
+
+        fprintf(
+            stderr,
+            "TRANSACTION: %s\n"
+            "CHAIN:       FAIL\n",
+            transaction_result_string(
+                tx_status
             )
         );
 
@@ -952,33 +1092,203 @@ static int update_references(
     }
 
     printf(
-        "REFERENCES:  %zu CHECKED\n",
-        summary.checked
+        "ROOT:          %s\n"
+        "REVISION:      %s\n"
+        "PREVIOUS:      %s\n"
+        "SHA-256:       %s\n"
+        "WORKING:       VERIFIED\n"
+        "AUTH INDEX:    COMMITTED\n"
+        "AUTH DOCUMENT: COMMITTED\n"
+        "AUTH AUDIT:    COMMITTED\n"
+        "VERIFY:        PASS\n"
+        "CHAIN:         PASS\n"
+        "TRANSACTION:   PASS\n",
+        identity.root_document_id,
+        identity.revision_id,
+        identity.previous_revision,
+        canonical_hex
     );
 
-    printf(
-        "UPDATED:     %zu\n",
-        summary.updated
-    );
+    return 0;
+}
+
+static int run_registration(
+    const char *document_path,
+    const char *index_path)
+{
+    transaction_result tx_status;
+
+    tx_status =
+        transaction_check_clear();
+
+    if (tx_status !=
+        TRANSACTION_OK) {
+
+        fprintf(
+            stderr,
+            "TRANSACTION: %s\n"
+            "CHAIN: FAIL_TRANSACTION_PRECHECK\n",
+            transaction_result_string(
+                tx_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * Read-only validation before transaction
+     * state is created.
+     */
+    if (preflight_registration(
+            document_path,
+            index_path) != 0) {
+
+        return 1;
+    }
+
+    tx_status =
+        transaction_begin(
+            document_path,
+            index_path,
+            "REGISTER"
+        );
+
+    if (tx_status !=
+        TRANSACTION_OK) {
+
+        fprintf(
+            stderr,
+            "TRANSACTION: %s\n",
+            transaction_result_string(
+                tx_status
+            )
+        );
+
+        return 1;
+    }
+
+    return
+        finish_authoritative_commit(
+            document_path,
+            index_path,
+            "REGISTER"
+        );
+}
+
+static int run_reference_update(
+    const char *document_path,
+    const char *index_path)
+{
+    reference_update_summary summary;
+
+    reference_result reference_status;
+
+    transaction_result tx_status;
+
+    tx_status =
+        transaction_check_clear();
+
+    if (tx_status !=
+        TRANSACTION_OK) {
+
+        fprintf(
+            stderr,
+            "TRANSACTION: %s\n"
+            "CHAIN: FAIL_TRANSACTION_PRECHECK\n",
+            transaction_result_string(
+                tx_status
+            )
+        );
+
+        return 1;
+    }
+
+    if (preflight_registration(
+            document_path,
+            index_path) != 0) {
+
+        return 1;
+    }
+
+    /*
+     * Reference resolution remains read-only
+     * before entering transaction state.
+     */
+    if (check_references(
+            document_path,
+            index_path) != 0) {
+
+        return 1;
+    }
+
+    tx_status =
+        transaction_begin(
+            document_path,
+            index_path,
+            "UPDATE_REFERENCES"
+        );
+
+    if (tx_status !=
+        TRANSACTION_OK) {
+
+        fprintf(
+            stderr,
+            "TRANSACTION: %s\n",
+            transaction_result_string(
+                tx_status
+            )
+        );
+
+        return 1;
+    }
+
+    /*
+     * Controlled reference rewrite.
+     */
+    reference_status =
+        reference_update_document(
+            document_path,
+            index_path,
+            &summary
+        );
+
+    if (reference_status !=
+        REFERENCE_OK) {
+
+        fprintf(
+            stderr,
+            "CHAIN: %s\n"
+            "TRANSACTION: INCOMPLETE\n"
+            "CHAIN: RECOVERY_REQUIRED\n",
+            reference_result_string(
+                reference_status
+            )
+        );
+
+        return 1;
+    }
 
     printf(
+        "REFERENCES:  %zu CHECKED\n"
+        "UPDATED:     %zu\n"
         "EXPLICIT:    %zu VERIFIED\n",
+        summary.checked,
+        summary.updated,
         summary.explicit_verified
     );
 
-    /*
-     * The normal registration path performs
-     * hashing, lineage, index registration,
-     * stamping, verification and audit append.
-     */
-    return register_document(
-        document_path,
-        index_path,
-        "UPDATE_REFERENCES"
-    );
+    return
+        finish_authoritative_commit(
+            document_path,
+            index_path,
+            "UPDATE_REFERENCES"
+        );
 }
 
-int main(int argc, char** argv)
+int main(
+    int argc,
+    char **argv)
 {
     if (argc == 1) {
 
@@ -986,85 +1296,87 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    if (argc == 2 &&
-        (
-            strcmp(
+    if (argc == 2) {
+
+        if (strcmp(
                 argv[1],
                 "--help") == 0 ||
-
             strcmp(
                 argv[1],
                 "-h") == 0 ||
-
             strcmp(
                 argv[1],
-                "help") == 0
-            )) {
+                "help") == 0) {
 
-        print_help();
-        return 0;
+            print_help();
+            return 0;
+        }
+
+        if (strcmp(
+                argv[1],
+                "--transaction-status") == 0) {
+
+            return
+                transaction_status_command();
+        }
+
+        if (strcmp(
+                argv[1],
+                "--recover") == 0) {
+
+            return
+                recover_command();
+        }
     }
 
-    /*
-     * Audit validation.
-     */
     if (argc == 3 &&
         strcmp(
             argv[1],
             "--verify-audit") == 0) {
 
-        return verify_audit_command(
-            argv[2]
-        );
+        return
+            verify_audit_command(
+                argv[2]
+            );
     }
 
-    /*
-     * Read-only reference verification.
-     */
     if (argc == 4 &&
         strcmp(
             argv[1],
             "--check-references") == 0) {
 
-        return check_references(
-            argv[2],
-            argv[3]
-        );
+        return
+            check_references(
+                argv[2],
+                argv[3]
+            );
     }
 
-    /*
-     * Controlled reference update.
-     */
     if (argc == 4 &&
         strcmp(
             argv[1],
             "--update-references") == 0) {
 
-        return update_references(
-            argv[2],
-            argv[3]
-        );
+        return
+            run_reference_update(
+                argv[2],
+                argv[3]
+            );
     }
 
-    /*
-     * Normal registration.
-     */
     if (argc == 3) {
 
-        return register_document(
-            argv[1],
-            argv[2],
-            "REGISTER"
-        );
+        return
+            run_registration(
+                argv[1],
+                argv[2]
+            );
     }
 
     fprintf(
         stderr,
         "CHAIN: FAIL_ARGUMENTS\n"
-        "\n"
-        "Run:\n"
-        "  chain --help\n"
-        "\n"
+        "Run: chain --help\n"
     );
 
     return 1;
