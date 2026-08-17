@@ -7,8 +7,18 @@
 #define SHA256_HEX_SIZE    65
 
 int sha256_file(
-    const char *path,
+    const char* path,
     unsigned char digest[SHA256_DIGEST_SIZE]
+);
+
+int sha256_canonical_file(
+    const char* path,
+    unsigned char digest[SHA256_DIGEST_SIZE]
+);
+
+int sha256_stamp_file(
+    const char* path,
+    const char hex[SHA256_HEX_SIZE]
 );
 
 void sha256_to_hex(

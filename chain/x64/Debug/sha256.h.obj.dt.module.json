@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "chain\\x64\\Debug\\sha256.obj",
+            "outputs": [
+                "chain\\x64\\Debug\\sha256.h.obj.dt.module.json",
+                "chain\\x64\\Debug\\sha256.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

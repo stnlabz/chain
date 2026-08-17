@@ -1,0 +1,71 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\main.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|solutionrelative:src\\main.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\sha256.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|solutionrelative:src\\sha256.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|C:\\Users\\Poe\\Documents\\GitHub\\chain\\include\\sha256.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9262E153-1A15-458C-BB41-AD14DCA79371}|chain.vcxproj|solutionrelative:include\\sha256.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "main.c",
+              "DocumentMoniker": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\main.c",
+              "RelativeDocumentMoniker": "src\\main.c",
+              "ToolTip": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\main.c",
+              "RelativeToolTip": "src\\main.c",
+              "ViewState": "AgIAAIEAAAAAAAAAAADwv6EAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000423|",
+              "WhenOpened": "2026-08-17T19:33:23.475Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "sha256.h",
+              "DocumentMoniker": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\include\\sha256.h",
+              "RelativeDocumentMoniker": "include\\sha256.h",
+              "ToolTip": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\include\\sha256.h",
+              "RelativeToolTip": "include\\sha256.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAACAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-08-17T19:32:35.449Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "sha256.c",
+              "DocumentMoniker": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\sha256.c",
+              "RelativeDocumentMoniker": "src\\sha256.c",
+              "ToolTip": "C:\\Users\\Poe\\Documents\\GitHub\\chain\\src\\sha256.c",
+              "RelativeToolTip": "src\\sha256.c",
+              "ViewState": "AgIAAJgCAAAAAAAAAAAAAK8CAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000423|",
+              "WhenOpened": "2026-08-17T19:28:34.642Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
