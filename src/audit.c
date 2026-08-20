@@ -254,6 +254,9 @@ audit_result audit_verify(
         sizeof(line),
         fp) != NULL) {
 
+        char *scan =
+            line;
+
         char *timestamp;
         char *operation;
         char *root;
@@ -266,6 +269,27 @@ audit_result audit_verify(
         char calculated[
             SHA256_HEX_SIZE
         ];
+
+        /*
+         * Empty lines are not audit records. Older Chain builds could
+         * leave a trailing blank line during interrupted work; ignoring
+         * whitespace-only lines prevents that presentation artifact from
+         * becoming a permanent global registration failure.
+         */
+        while (
+            *scan == ' ' ||
+            *scan == '\t' ||
+            *scan == '\r' ||
+            *scan == '\n'
+            )
+        {
+            ++scan;
+        }
+
+        if (*scan == '\0')
+        {
+            continue;
+        }
 
         if (!parse_line(
             line,
@@ -283,10 +307,17 @@ audit_result audit_verify(
             return AUDIT_ERR_MALFORMED;
         }
 
-        if (strlen(document_sha256) != 64 ||
+        if (
+            timestamp[0] == '\0' ||
+            operation[0] == '\0' ||
+            root[0] == '\0' ||
+            revision[0] == '\0' ||
+            previous_revision[0] == '\0' ||
+            strlen(document_sha256) != 64 ||
             strlen(previous_record_sha256) != 64 ||
-            strlen(record_sha256) != 64) {
-
+            strlen(record_sha256) != 64
+            )
+        {
             fclose(fp);
 
             return AUDIT_ERR_MALFORMED;
@@ -384,6 +415,9 @@ static audit_result get_last_record_hash(
         sizeof(line),
         fp) != NULL) {
 
+        char *scan =
+            line;
+
         char *timestamp;
         char *operation;
         char *root;
@@ -392,6 +426,21 @@ static audit_result get_last_record_hash(
         char *document_sha256;
         char *previous_record_sha256;
         char *record_sha256;
+
+        while (
+            *scan == ' ' ||
+            *scan == '\t' ||
+            *scan == '\r' ||
+            *scan == '\n'
+            )
+        {
+            ++scan;
+        }
+
+        if (*scan == '\0')
+        {
+            continue;
+        }
 
         if (!parse_line(
             line,
