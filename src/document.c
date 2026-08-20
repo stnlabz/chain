@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "document.h"
 
@@ -317,48 +319,135 @@ document_result document_read_identity(
     return DOCUMENT_OK;
 }
 
-int document_is_initial_revision(
+document_identity_type document_classify_identity(
     const document_identity* identity)
 {
-    char expected_revision[
-        DOCUMENT_REVISION_ID_SIZE
-    ];
-
-    int written;
+    const char* revision_suffix;
+    char* end = NULL;
+    long revision_number;
+    size_t root_length;
 
     if (identity == NULL) {
-        return 0;
+        return DOCUMENT_IDENTITY_INVALID;
     }
 
-    written = snprintf(
-        expected_revision,
-        sizeof(expected_revision),
-        "%s.R0",
+    /*
+     * Root document:
+     *
+     * Revision ID: NONE
+     * Previous Revision: NONE
+     */
+    if (strcmp(
+        identity->revision_id,
+        "NONE") == 0) {
+
+        if (strcmp(
+            identity->previous_revision,
+            "NONE") != 0) {
+
+            return DOCUMENT_IDENTITY_INVALID;
+        }
+
+        return DOCUMENT_IDENTITY_ROOT;
+    }
+
+    root_length = strlen(
         identity->root_document_id
     );
 
-    if (written <= 0 ||
-        (size_t)written >=
-        sizeof(expected_revision)) {
-
-        return 0;
-    }
-
-    if (strcmp(
+    /*
+     * A revision must begin with:
+     *
+     * <Root Document ID>.R
+     */
+    if (strncmp(
         identity->revision_id,
-        expected_revision) != 0) {
+        identity->root_document_id,
+        root_length) != 0) {
 
-        return 0;
+        return DOCUMENT_IDENTITY_INVALID;
     }
 
-    if (strcmp(
-        identity->previous_revision,
-        "NONE") != 0) {
+    revision_suffix =
+        identity->revision_id +
+        root_length;
 
-        return 0;
+    if (revision_suffix[0] != '.' ||
+        revision_suffix[1] != 'R' ||
+        revision_suffix[2] == '\0') {
+
+        return DOCUMENT_IDENTITY_INVALID;
     }
 
-    return 1;
+    errno = 0;
+
+    revision_number = strtol(
+        revision_suffix + 2,
+        &end,
+        10
+    );
+
+    if (errno != 0 ||
+        end == revision_suffix + 2 ||
+        *end != '\0' ||
+        revision_number < 1) {
+
+        return DOCUMENT_IDENTITY_INVALID;
+    }
+
+    /*
+     * First revision:
+     *
+     * <ROOT>.R1
+     * Previous Revision: NONE
+     */
+    if (revision_number == 1) {
+
+        if (strcmp(
+            identity->previous_revision,
+            "NONE") != 0) {
+
+            return DOCUMENT_IDENTITY_INVALID;
+        }
+
+        return DOCUMENT_IDENTITY_FIRST_REVISION;
+    }
+
+    /*
+     * R2+ requires the immediately preceding
+     * revision.
+     */
+    {
+        char expected_previous[
+            DOCUMENT_PREVIOUS_SIZE
+        ];
+
+        int written;
+
+        written = snprintf(
+            expected_previous,
+            sizeof(expected_previous),
+            "%s.R%ld",
+            identity->root_document_id,
+            revision_number - 1
+        );
+
+        if (written <= 0 ||
+            (size_t)written >=
+            sizeof(expected_previous)) {
+
+            return DOCUMENT_IDENTITY_INVALID;
+        }
+
+        if (strcmp(
+            identity->previous_revision,
+            expected_previous) != 0) {
+
+            return DOCUMENT_IDENTITY_INVALID;
+        }
+    }
+
+    return DOCUMENT_IDENTITY_REVISION;
 }
 
 const char* document_result_string(

@@ -46,12 +46,19 @@ typedef enum {
 
 } document_result;
 
+typedef enum {
+    DOCUMENT_IDENTITY_INVALID = 0,
+    DOCUMENT_IDENTITY_ROOT,
+    DOCUMENT_IDENTITY_FIRST_REVISION,
+    DOCUMENT_IDENTITY_REVISION
+} document_identity_type;
+
 document_result document_read_identity(
     const char* path,
     document_identity* identity
 );
 
-int document_is_initial_revision(
+document_identity_type document_classify_identity(
     const document_identity* identity
 );
 

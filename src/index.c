@@ -355,7 +355,15 @@ static int parse_revision_number(
         return 0;
     }
 
-    if (value == ULONG_MAX) {
+    /*
+     * R0 is not a valid revision.
+     *
+     * The root document is represented by
+     * Revision ID: NONE.
+     */
+    if (value == 0 ||
+        value == ULONG_MAX) {
+
         return 0;
     }
 
@@ -398,8 +406,16 @@ int index_create_initial(
         return 0;
     }
 
-    if (!document_is_initial_revision(
-        identity)) {
+    /*
+     * A new index begins with a root document.
+     *
+     * Root document:
+     * Revision ID: NONE
+     * Previous Revision: NONE
+     */
+    if (document_classify_identity(
+        identity) !=
+        DOCUMENT_IDENTITY_ROOT) {
 
         return 0;
     }
@@ -962,7 +978,7 @@ index_resolve_result index_resolve_latest_approved(
                         INDEX_STATUS_SIZE
                     ];
 
-                    unsigned long revision_number;
+                    unsigned long revision_number = 0;
 
                     if (!extract_string_field(
                         object,
@@ -982,7 +998,24 @@ index_resolve_result index_resolve_latest_approved(
                         return INDEX_RESOLVE_ERROR;
                     }
 
-                    if (!parse_revision_number(
+                    /*
+                     * Root document:
+                     *
+                     * Revision ID: NONE
+                     *
+                     * The root is the baseline document and
+                     * therefore uses revision number 0 only
+                     * internally for resolution ordering.
+                     *
+                     * This does NOT create or imply R0.
+                     */
+                    if (strcmp(
+                        revision_id,
+                        "NONE") == 0) {
+
+                        revision_number = 0;
+                    }
+                    else if (!parse_revision_number(
                         root_document_id,
                         revision_id,
                         &revision_number)) {
@@ -1069,6 +1102,17 @@ int index_append_revision(
     }
 
     if (!file_exists(path)) {
+        return 0;
+    }
+
+    /*
+     * Only a valid root document or valid revision
+     * may be appended to the index.
+     */
+    if (document_classify_identity(
+        identity) ==
+        DOCUMENT_IDENTITY_INVALID) {
+
         return 0;
     }
 
